@@ -23,14 +23,17 @@ async fn echo(req_body: String) -> impl Responder {
 async fn add_crc32_header_middleware(
     res: ServiceResponse,
 ) -> Result<ServiceResponse, Error> {
-    let body = res.response().body();
-    let crc = CRC32.checksum(&body.try_into_bytes().unwrap());
+
+    let (rq, mut rs) = res.into_parts();
+
+    let body = rs.body().try_into_bytes().unwrap();
+    let crc = CRC32.checksum(&body);
     let hash = format!("{:x}", crc);
 
-    let mut hdrs = res.response().headers_mut();
+    let hdrs = rs.headers_mut();
     hdrs.insert( HeaderName::from_static("x-crc32"), HeaderValue::from_str(&hash).unwrap());
 
-    Ok(res)
+    Ok(ServiceResponse::new(rq,rs))
 }
 
 
