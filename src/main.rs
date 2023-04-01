@@ -29,21 +29,21 @@ async fn add_crc32_header_middleware(
     next: Next<impl MessageBody + 'static>,
 ) -> Result<ServiceResponse<impl MessageBody>, Error> {
 
-    let res = next.call(req).await.unwrap();
+    let mut res = next.call(req).await?;
 
-    let (rq, mut rs) = res.into_parts();
+    let body = res.response().body();
 
-    let body = match rs.body().try_into_bytes() {
+    let body_bytes = match body.try_into_bytes() {
         Ok(bytes) => bytes,
-        _ => return Err(actix_web::error::ErrorRequestTimeout("")),
+        _ => return Err(actix_web::error::ErrorImATeapot(""))
     };
-    let crc = CRC32.checksum(&body);
+    let crc = CRC32.checksum(&body_bytes);
     let hash = format!("{:x}", crc);
 
-    let hdrs = rs.headers_mut();
+    let hdrs = res.headers_mut();
     hdrs.insert( HeaderName::from_static("x-crc32"), HeaderValue::from_str(&hash).unwrap());
 
-    Ok(ServiceResponse::new(rq,rs))
+    Ok(res)
 }
 
 
